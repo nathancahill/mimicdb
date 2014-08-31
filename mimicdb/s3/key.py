@@ -1,46 +1,79 @@
-from boto.s3.key import Key as boto_Key
+"""MimicDB Key subclass wrapper
+"""
+
+from boto.s3.key import Key as BotoKey
 
 import mimicdb
+from . import tpl
 
 
-class Key(boto_Key):
+class Key(BotoKey):
     def __init__(self, *args, **kwargs):
+        """Add the key to the bucket set if the key name is set and metadata is
+        available for it, otherwise wait until uploaded or downloaded.
         """
-        Adds an attribute 'base' for key metadata. Stores the key in the bucket
-        if the key name is already set, otherwise nothing is stored.
-        """
-        self.base = '%(bucket)s:%(key)s'
-        self.bucket = kwargs.get('bucket', args[0] if args else None)
-        self.name = kwargs.get('name', args[1] if len(args) > 1 else None)
+        bucket = kwargs.get('bucket', args[0] if args else None)
+        name = kwargs.get('name', args[1] if len(args) > 1 else None)
 
-        if self.name and self.bucket:
-            mimicdb.redis.sadd(self.bucket.name, self.name)
+        self._name = name
+
+        if name and bucket:
+            meta = mimicdb.redis.hgetall(tpl.key % (bucket.name, name))
+
+            if meta:
+                mimicdb.redis.sadd(tpl.bucket % bucket.name, name)
+                self._load_meta(meta['size'], meta['md5'])
 
         super(Key, self).__init__(*args, **kwargs)
 
+    def _load_meta(self, size, md5):
+        """Set key attributes to retrived metadata. Might be extended in the
+        future to support more attributes.
+        """
+        if not hasattr(self, 'local_hashes'):
+            self.local_hashes = {}
 
-    def _get_key(self):
-        return super(Key, self).name
+        self.size = int(size)
+        self.md5 = md5
 
+    @property
+    def name(self):
+        return self._name
 
-    def _set_key(self, *args, **kwargs):
-        value = kwargs.get('value', args[0])
+    @name.setter
+    def name(self, value):
+        """Key name can be set by Key.key or Key.name. Key.key sets Key.name
+        internally, so just handle this property. When changing the key
+        name, try to load it's metadata from MimicDB. If it's not available,
+        the key hasn't been uploaded, downloaded or synced so don't add it to
+        the bucket set (it also might have just been deleted,
+        see boto.s3.bucket.py#785)
+        """
+        self._name = value
 
-        mimicdb.redis.sadd(self.bucket.name, value)
+        if value:
+            meta = mimicdb.redis.hgetall(tpl.key % (self.bucket.name, value))
 
-        return super(Key, self)._set_key(*args, **kwargs)
-
-
-    key = property(_get_key, _set_key)
-
+            if meta:
+                mimicdb.redis.sadd(tpl.bucket % self.bucket.name, value)
+                self._load_meta(meta['size'], meta['md5'])
 
     def _send_file_internal(self, *args, **kwargs):
+        """Called internally for any type of upload. After upload finishes,
+        make sure the key is in the bucket set and save the metadata.
         """
-        Saves the file size when the key contents are set using:
-         - set_contents_from_file
-         - set_contents_from_filename
-         - set_contents_from_string
+        super(Key, self)._send_file_internal(*args, **kwargs)
+
+        mimicdb.redis.sadd(tpl.bucket % self.bucket.name, self.name)
+        mimicdb.redis.hmset(tpl.key % (self.bucket.name, self.name),
+                            dict(size=self.size, md5=self.md5))
+
+    def _get_file_internal(self, *args, **kwargs):
+        """Called internally for any type of download. After download finishes,
+        make sure the key is in the bucket set and save the metadata.
         """
-        key_size = super(Key, self)._send_file_internal(*args, **kwargs)
-        mimicdb.redis.set((self.base + ':size') % dict(bucket=self.bucket.name, key=self.name), key_size)
-        return key_size
+        super(Key, self)._get_file_internal(*args, **kwargs)
+
+        mimicdb.redis.sadd(tpl.bucket % self.bucket.name, self.name)
+        mimicdb.redis.hmset(tpl.key % (self.bucket.name, self.name),
+                            dict(size=self.size, md5=self.md5))        

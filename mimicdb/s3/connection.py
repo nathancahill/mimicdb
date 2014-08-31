@@ -1,77 +1,66 @@
-from boto.s3.connection import S3Connection as boto_S3Connection
+"""MimicDB S3Connection subclass wrapper
+"""
+
+from boto.s3.connection import S3Connection as BotoS3Connection
 from boto.exception import S3ResponseError
 
 import mimicdb
-from mimicdb.s3.bucket import Bucket
+from .bucket import Bucket
+from . import tpl
 
 
-class S3Connection(boto_S3Connection):
+class S3Connection(BotoS3Connection):
     def __init__(self, *args, **kwargs):
-        """
-        Sets the base class for bucket objects created in the connection to the
-        MimicDB class.
+        """Set the base class for bucket objects created in the connection to
+        the MimicDB bucket class.
         """
         kwargs['bucket_class'] = Bucket
         super(S3Connection, self).__init__(*args, **kwargs)
 
-
     def get_all_buckets(self, *args, **kwargs):
-        """
-        Retrieve buckets from the 'mimicdb' set. Passing 'force' checks S3 for
-        the list of buckets.
+        """Return a list of buckets in the MimicDB set. Pass 'force' to check
+        S3 for the list of buckets.
         """
         if kwargs.pop('force', None):
             buckets = super(S3Connection, self).get_all_buckets(*args, **kwargs)
 
             for bucket in buckets:
-                mimicdb.redis.sadd('mimicdb', bucket.name)
+                mimicdb.redis.sadd(tpl.connection, bucket.name)
 
             return buckets
 
-        return [Bucket(self, bucket) for bucket in mimicdb.redis.smembers('mimicdb')]
+        return [Bucket(self, bucket) for bucket in mimicdb.redis.smembers(tpl.connection)]
 
-
-    def get_bucket(self, *args, **kwargs):
+    def get_bucket(self, bucket_name, validate=True, headers=None, force=None):
+        """Return a bucket from the MimicDB set if it exists. Simulates an
+        S3ResponseError if the bucket does not exist and validate is passed.
         """
-        Retrieves a bucket from the 'mimicdb' set if it exists. Simulates an
-        S3ResponseError if the bucket does not exist (and validate is passed).
-        """
-        if kwargs.pop('force', None):
-            bucket = super(S3Connection, self).get_bucket(*args, **kwargs)
-
-            mimicdb.redis.sadd('mimicdb', bucket.name)
-
+        if force:
+            bucket = super(S3Connection, self).get_bucket(bucket_name, validate, headers)
+            mimicdb.redis.sadd(tpl.connection, bucket.name)
             return bucket
 
-        name = kwargs.get('bucket_name', args[0] if args else None)
-        validate = kwargs.get('validate', args[0] if args else True)
-
-        if not name:
-            raise ValueError
-
-        if mimicdb.redis.sismember('mimicdb', name):
-            return Bucket(name)
+        if mimicdb.redis.sismember(tpl.connection, bucket_name):
+            return Bucket(self, bucket_name)
         else:
             if validate:
                 raise S3ResponseError(404, 'NoSuchBucket')
-
+            else:
+                return Bucket(self, bucket_name)
 
     def create_bucket(self, *args, **kwargs):
+        """Add the bucket to the MimicDB set if creation is successful.
         """
-        Add the bucket name to the mimicdb set.
-        """
-        bucket = kwargs.get('bucket_name', args[0] if args else None)
+        bucket = super(S3Connection, self).create_bucket(*args, **kwargs)
 
         if bucket:
-            mimicdb.redis.sadd('mimicdb', bucket)
+            mimicdb.redis.sadd(tpl.connection, bucket.name)
 
-        return super(S3Connection, self).create_bucket(*args, **kwargs)
-
+        return bucket
 
     def delete_bucket(self, *args, **kwargs):
-        """
-        Deletes the bucket on S3 before removing it from the mimicdb set.
-        If the delete fails (usually because the bucket is not empty), it does
+        """Delete the bucket on S3 before removing it from the MimicDB set.
+        If the delete fails (usually because the bucket is not empty), do
         not remove the bucket from the set.
         """
         super(S3Connection, self).delete_bucket(*args, **kwargs)
@@ -79,53 +68,40 @@ class S3Connection(boto_S3Connection):
         bucket = kwargs.get('bucket_name', args[0] if args else None)
 
         if bucket:
-            mimicdb.redis.srem('mimicdb', bucket)
+            mimicdb.redis.srem(tpl.connection, bucket)
 
+    def sync(self, metadata=False, buckets=[]):
+        """Sync either a list of buckets or the entire connection.
+        If metadata=True, a HEAD request is performed for each key to download
+        the size and md5 hash of the key.
 
-    def sync(self, bucket=None):
+        Force all API calls to S3 and populate the database with the current
+        state of S3.
         """
-        Syncs either a bucket or the entire connection.
+        if buckets:
+            for _bucket in buckets:
+                for key in mimicdb.redis.smembers(tpl.bucket % _bucket):
+                    mimicdb.redis.delete(tpl.key % (_bucket, key))
 
-        Bucket names are stored in a set named 'mimicdb'.
-        Key names are stored in a set with the same name as the bucket.
+                mimicdb.redis.delete(tpl.bucket % _bucket)
 
-        Key metadata is in the format 'bucket:key:size'.
-
-        Syncing overrides the MimicDB functionality and forces API calls to S3.
-
-        Calling sync() populates the database with the current state of S3.
-        When syncing the entire connection, the mimicdb set and all bucket sets
-        are wiped before being re-populated. When syncing a bucket, the bucket set
-        is wiped before it is re-populated.
-        """
-        if bucket:
-            bucket = self.get_bucket(bucket)
-
-            mimicdb.redis.sadd('mimicdb', bucket.name)
-
-            for key in mimicdb.redis.smembers(bucket.name):
-                mimicdb.redis.delete('%(bucket)s:%(key)s:size' % dict(bucket=bucket, key=key))
-
-            mimicdb.redis.delete(bucket.name)
-
-            for key in bucket.list(force=True):
-                mimicdb.redis.sadd(bucket.name, key.name)
-                mimicdb.redis.set((key.base + ':size') % dict(bucket=bucket.name, key=key.name), key.size)
-
-        else:
-            for bucket in mimicdb.redis.smembers('mimicdb'):
-                for key in mimicdb.redis.smembers(bucket):
-                    mimicdb.redis.delete('%(bucket)s:%(key)s:size' % dict(bucket=bucket, key=key))
-
-                mimicdb.redis.delete(bucket)
-
-            mimicdb.redis.delete('mimicdb')
-
-            buckets = self.get_all_buckets(force=True)
-
-            for bucket in buckets:
-                mimicdb.redis.sadd('mimicdb', bucket.name)
+                bucket = self.get_bucket(_bucket, force=True)
 
                 for key in bucket.list(force=True):
-                    mimicdb.redis.sadd(bucket.name, key.name)
-                    mimicdb.redis.set((key.base + ':size') % dict(bucket=bucket.name, key=key.name), key.size)
+                    if metadata:
+                        bucket.get_key(key.name, force=True)
+                    else:
+                        mimicdb.redis.sadd(tpl.bucket % bucket, key.name)
+        else:
+            for bucket in mimicdb.redis.smembers(tpl.connection):
+                for key in mimicdb.redis.smembers(tpl.bucket % bucket):
+                    mimicdb.redis.delete(tpl.key % (bucket, key))
+
+                mimicdb.redis.delete(tpl.bucket % bucket)
+
+            for bucket in self.get_all_buckets(force=True):
+                for key in bucket.list(force=True):
+                    if metadata:
+                        bucket.get_key(key.name, force=True)
+                    else:
+                        mimicdb.redis.sadd(tpl.bucket % bucket.name, key.name)

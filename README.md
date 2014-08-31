@@ -1,11 +1,8 @@
-### MimicDB: An Isometric Key-Value Store for S3
+### MimicDB: An Isomorphic Key-Value Store for S3
 
 #### S3 Metadata without the Latency or Costs
 
-By maintaining a transactional record of every API call to S3, MimicDB provides a local,
-isometric key-value store of data on S3. MimicDB stores everything except the contents of
-objects locally. Tasks like listing, searching and calculating storage usage on massive
-amounts of data are now fast and free.
+MimicDB is a local database of the metadata of objects stored on S3. Many tasks like listing, searching keys and calculating storage usage can be completely handled locally, without the latency or costs of calling the S3 API.
 
 On average, tasks like these are __2000x__ faster using MimicDB.
 
@@ -29,25 +26,24 @@ __Boto + MimicDB__
 0.000198841094971 
 ```
 
-#### Works with Python and Boto
+#### Key Value Store
 
-MimicDB wraps every S3 API call made by boto and mimics the response locally. Additionally,
-if an API call can be fulfilled by MimicDB, it returns instantly without hitting the S3 API
-at all (although the API call can be forced). Python (including aws-cli) will be supported
-at launch, with Ruby support on the roadmap.
+MimicDB uses a Redis backend to stored S3 metadata. Data is stored in the following layout.
 
+`mimicdb` A set of buckets
 
-#### Built on Redis
+`mimicdb:bucket` A set of keys
 
-All metadata is stored logically in Redis. Object keys and metadata values use nomenclature
-that is identical to S3. This allows manually querying the database and prevents being locked
-in to another database layer. It also allows the database to be shared between multiple servers.
+`mimicdb:bucket:key` A hash of key metadata (size and MD5)
 
+The `mimicdb` prefix can additionally use an optional `namespace` string, which allows multiple S3 connections to share the same backend. In that case, the layout looks like this:
 
-#### Force Synchronization and Key Population
+`mimicdb:namespace`
 
-For S3 objects that are updated independently of MimicDB, a complete or partial synchronization
-can be forced by providing an iterable of outdated keys. This keeps S3 API calls to a minimum
-and doesn't assume consistency.
+`mimicdb:namespace:bucket`
 
+`mimicdb:namespace:bucket:key`
 
+#### Implementation
+
+MimicDB is currently implemented in Python via Boto. If you're using Boto already, the MimicDB Python library works as a drop in replacement.
