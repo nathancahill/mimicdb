@@ -78,6 +78,11 @@ class SQLiteBackendTestCase(unittest.TestCase):
         
         assert self.sqlite.hgetall('mimicdb-tests') == dict(size='3', md5='md5')
 
+    def hgetall_none_test(self):
+        self.sqlite.hmset('mimicdb-tests', dict(size='3', md5='md5'))
+        
+        assert self.sqlite.hgetall('mimicdb') == dict()
+
 
 class MemoryBackendTestCase(unittest.TestCase):
     def setUp(self):
