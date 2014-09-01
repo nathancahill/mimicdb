@@ -17,6 +17,8 @@ from mimicdb.s3.bucket import Bucket
 from mimicdb.s3.key import Key
 from mimicdb.backends import tpl
 from mimicdb.backends.sqlite import SQLite
+from mimicdb.backends.memory import Memory
+from mimicdb.backends.default import Redis
 
 AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
 AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -27,10 +29,116 @@ def random_string(size=6, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
+class SQLiteBackendTestCase(unittest.TestCase):
+    def setUp(self):
+        self.sqlite = SQLite()
+
+    def init_test(self):
+        self.assertIsInstance(self.sqlite, mimicdb.backends.Backend)
+
+    def keys_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-keys')
+
+        assert 'mimicdb-tests' in self.sqlite.keys('mimicdb*')
+
+    def delete_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-delete')
+        self.sqlite.delete('mimicdb-tests')
+
+        assert 'mimicdb-tests' not in self.sqlite.keys('mimicdb*')
+
+    def sadd_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-keys')
+
+        assert 'test-keys' in self.sqlite.smembers('mimicdb-tests')
+
+    def srem_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-keys')
+        self.sqlite.srem('mimicdb-tests', 'test-keys')
+
+        assert 'test-keys' not in self.sqlite.smembers('mimicdb-tests')
+
+    def sismember_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-keys')
+
+        assert self.sqlite.sismember('mimicdb-tests', 'test-keys')
+
+    def smembers_test(self):
+        self.sqlite.sadd('mimicdb-tests', 'test-keys')
+
+        assert 'test-keys' in self.sqlite.smembers('mimicdb-tests')
+
+    def hmset_test(self):
+        self.sqlite.hmset('mimicdb-tests', dict(size='3', md5='md5'))
+        
+        assert self.sqlite.hgetall('mimicdb-tests') == dict(size='3', md5='md5')
+
+    def hgetall_test(self):
+        self.sqlite.hmset('mimicdb-tests', dict(size='3', md5='md5'))
+        
+        assert self.sqlite.hgetall('mimicdb-tests') == dict(size='3', md5='md5')
+
+
+class MemoryBackendTestCase(unittest.TestCase):
+    def setUp(self):
+        self.memory = Memory()
+
+    def init_test(self):
+        self.assertIsInstance(self.memory, mimicdb.backends.Backend)
+
+    def keys_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+
+        assert 'mimicdb-tests' in self.memory.keys('mimicdb*')
+
+    def delete_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-delete')
+        self.memory.delete('mimicdb-tests')
+
+        assert 'mimicdb-tests' not in self.memory.keys('mimicdb*')
+
+    def sadd_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+        self.memory.sadd('mimicdb-tests', 'test-keys-2')
+
+        assert 'test-keys' in self.memory.smembers('mimicdb-tests')
+        assert 'test-keys-2' in self.memory.smembers('mimicdb-tests')
+
+    def srem_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+        self.memory.srem('mimicdb-tests', 'test-keys')
+
+        assert 'test-keys' not in self.memory.smembers('mimicdb-tests')
+
+    def sismember_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+
+        assert self.memory.sismember('mimicdb-tests', 'test-keys')
+
+    def sisntmember_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+
+        assert self.memory.sismember('mimicdb', 'test-keys') == False
+
+    def smembers_test(self):
+        self.memory.sadd('mimicdb-tests', 'test-keys')
+
+        assert 'test-keys' in self.memory.smembers('mimicdb-tests')
+
+    def hmset_test(self):
+        self.memory.hmset('mimicdb-tests', dict(size='3', md5='md5'))
+        
+        assert self.memory.hgetall('mimicdb-tests') == dict(size='3', md5='md5')
+
+    def hgetall_test(self):
+        self.memory.hmset('mimicdb-tests', dict(size='3', md5='md5'))
+        
+        assert self.memory.hgetall('mimicdb-tests') == dict(size='3', md5='md5')
+
+
 class MimicDBTestCase(unittest.TestCase):
     def setUp(self):
-        MimicDB(SQLite())
-        # MimicDB(namespace='tests')
+        MimicDB(namespace='tests')
 
         self.conn = S3Connection(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
         self.boto_conn = BotoS3Connection(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
