@@ -1,49 +1,105 @@
-### MimicDB: An Isomorphic Key-Value Store for S3
+## MimicDB
 
-#### S3 Metadata without the Latency or Costs
+[![PyPI](http://img.shields.io/pypi/v/mimicdb.svg?style=flat)](https://pypi.python.org/pypi/mimicdb/)
+[![Build Status](http://img.shields.io/travis/nathancahill/mimicdb/master.svg?style=flat)](https://travis-ci.org/nathancahill/mimicdb)
+[![Coverage Status](http://img.shields.io/coveralls/nathancahill/mimicdb/master.svg?style=flat)](https://coveralls.io/r/nathancahill/mimicdb)
 
-MimicDB is a local database of the metadata of objects stored on S3. Many tasks like listing, searching keys and calculating storage usage can be completely handled locally, without the latency or costs of calling the S3 API.
 
-On average, tasks like these are __2000x__ faster using MimicDB.
+#### Python Implementation of MimicDB
 
-__Boto__
-```python
->>> c = S3Connection(KEY, SECRET)
->>> bucket = c.get_bucket('bucket_name')
->>> start = time.time()
->>> bucket.get_all_keys()
->>> print time.time() - start
-0.425064992905
+Python works with the Boto library.
+
+#### Installation
+
+By default, MimicDB requires Redis (although other backends can be used instead).
+
+```
+$ pip install redis
+$ pip install mimicdb
 ```
 
-__Boto + MimicDB__
-```python
->>> c = S3Connection(KEY, SECRET)
->>> bucket = c.get_bucket('bucket_name')
->>> start = time.time()
->>> bucket.get_all_keys()
->>> print time.time() - start
-0.000198841094971 
+#### Quickstart
+
+If you're using Boto already, replace ```boto``` imports with ```mimicdb``` imports.
+
+Change:
+```
+from boto.s3.connection import S3Connection
+from boto.s3.key import Key
 ```
 
-#### Key Value Store
+To:
+```
+from mimicdb.s3.connection import S3Connection
+from mimicdb.s3.key import Key
+```
 
-MimicDB uses a Redis backend to stored S3 metadata. Data is stored in the following layout.
+Additionally, import the MimicDB object itself, and initiate the backend:
+```
+from mimicdb import MimicDB
+MimicDB()
+```
 
-`mimicdb` A set of buckets
+After establishing a connection for the first time, sync the connection to save the metadata locally:
+```
+conn = S3Connection(KEY, SECRET)
+conn.sync()
+```
 
-`mimicdb:bucket` A set of keys
+Or sync only a couple buckets from the connection:
+```
+conn.sync('bucket1', 'bucket2')
+```
 
-`mimicdb:bucket:key` A hash of key metadata (size and MD5)
+After that, upload, download and list as you usually would. API calls that can be responded to locally will return instantly without hitting S3 servers. API calls that are made to S3 using MimicDB will be mimicked locally to ensure consistency with the remote servers.
 
-The `mimicdb` prefix can additionally use an optional `namespace` string, which allows multiple S3 connections to share the same backend. In that case, the layout looks like this:
+Pass ```force=True``` to most functions to force a call to the S3 API. This also updates the local database.
 
-`mimicdb:namespace`
+#### Alternate Backends
 
-`mimicdb:namespace:bucket`
+Besides the default Redis backend, MimicDB has SQLite and in-memory backends available.
+```
+from mimicdb.backends.sqlite import SQLite
+MimicDB(SQLite())
+```
+```
+from mimicdb.backends.memory import Memory
+MimicDB(Memory())
+```
 
-`mimicdb:namespace:bucket:key`
+#### Documentation
 
-#### Implementation
+[mimicdb.readthedocs.org](http://mimicdb.readthedocs.org)
 
-MimicDB is currently implemented in Python via Boto. If you're using Boto already, the MimicDB Python library works as a drop in replacement.
+#### Contributing
+
+
+1. Fork the repo.
+2. Run tests to ensure a clean, working slate.
+3. Improve/fix the code.
+4. Add test cases if new functionality introduced or bug fixed (100% test coverage).
+5. Ensure tests pass.
+6. Push to your fork and submit a pull request to the develop branch.
+
+#### Tests
+
+Run tests after installing nose and coverage.
+
+```
+$ nosetests --with-coverage --cover-package=mimicdb
+```
+
+Integration testing is provided by Travis-CI at [travis-ci.org/nathancahill/mimicdb](https://travis-ci.org/nathancahill/mimicdb)
+
+Test coverage reporting is provided by Coveralls at [coveralls.io/r/nathancahill/mimicdb](coveralls.io/r/nathancahill/mimicdb)
+
+#### Benchmarks
+
+Run ```benchmarks.py``` in the root of the repo:
+
+```
+$ python benchmarks.py
+Boto Time: 0.338411092758
+MimicDB Time: 0.00015789039612
+Factor: 2143x faster
+```

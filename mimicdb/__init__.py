@@ -1,19 +1,17 @@
-from redis import StrictRedis
-from .s3 import tpl
+"""Python implementation of MimicDB
+"""
+
 
 class MimicDB(object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, backend=None, namespace=None):
+        """Initialze the MimicDB backend with an optional namespace.
         """
-        Initialze the MimicDB object by passing the Redis connection parameters:
+        if not backend:
+            from .backends.default import Redis
+            backend = Redis()
 
-        :host='localhost'
-        :port=6379
-        :db=0
+        globals()['backend'] = backend
 
-        The Redis connection is accessed elsewhere in the module by importing
-        mimicdb, then calling mimicdb.redis
-        """
-        if kwargs and 'namespace' in kwargs:
-            tpl.set_namespace(kwargs.pop('namespace'))
-
-        globals()['redis'] = StrictRedis(*args, **kwargs)
+        if namespace:
+            from .backends import tpl
+            tpl.set_namespace(namespace)

@@ -6,7 +6,7 @@ from boto.s3.key import Key as BotoKey
 
 import mimicdb
 from .key import Key
-from . import tpl
+from ..backends import tpl
 
 
 class Bucket(BotoBucket):
@@ -44,15 +44,15 @@ class Bucket(BotoBucket):
             key, res = super(Bucket, self)._get_key_internal(*args, **kwargs)
 
             if key:
-                mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
-                mimicdb.redis.hmset(tpl.key % (self.name, key.name),
+                mimicdb.backend.sadd(tpl.bucket % self.name, key.name)
+                mimicdb.backend.hmset(tpl.key % (self.name, key.name),
                                     dict(size=key.size,
                                          md5=key.etag.strip('"')))
             return key, res
 
         key = None
 
-        if mimicdb.redis.sismember(tpl.bucket % self.name, args[0]):
+        if mimicdb.backend.sismember(tpl.bucket % self.name, args[0]):
             key = Key(self)
             key.name = args[0]
 
@@ -80,19 +80,19 @@ class Bucket(BotoBucket):
                 break
 
             if isinstance(key, basestring):
-                mimicdb.redis.srem(tpl.bucket % self.name, key)
-                mimicdb.redis.delete(tpl.key % (self.name, key))
+                mimicdb.backend.srem(tpl.bucket % self.name, key)
+                mimicdb.backend.delete(tpl.key % (self.name, key))
             elif isinstance(key, BotoKey) or isinstance(key, Key):
-                mimicdb.redis.srem(tpl.bucket % self.name, key.name)
-                mimicdb.redis.delete(tpl.key % (self.name, key.name))
+                mimicdb.backend.srem(tpl.bucket % self.name, key.name)
+                mimicdb.backend.delete(tpl.key % (self.name, key.name))
 
         return super(Bucket, self).delete_keys(*args, **kwargs)
 
     def _delete_key_internal(self, *args, **kwargs):
         """Remove key name from bucket set.
         """
-        mimicdb.redis.srem(tpl.bucket % self.name, args[0])
-        mimicdb.redis.delete(tpl.key % (self.name, args[0]))
+        mimicdb.backend.srem(tpl.bucket % self.name, args[0])
+        mimicdb.backend.delete(tpl.key % (self.name, args[0]))
 
         return super(Bucket, self)._delete_key_internal(*args, **kwargs)
 
@@ -111,11 +111,11 @@ class Bucket(BotoBucket):
         else:
             prefix = kwargs.get('prefix', args[0] if args else '')
 
-            for key in mimicdb.redis.smembers(tpl.bucket % self.name):
+            for key in mimicdb.backend.smembers(tpl.bucket % self.name):
                 if key.startswith(prefix):
                     k = Key(self, key)
 
-                    meta = mimicdb.redis.hgetall(tpl.key % (self.name, key))
+                    meta = mimicdb.backend.hgetall(tpl.key % (self.name, key))
 
                     if meta:
                         k._load_meta(meta['size'], meta['md5'])
@@ -138,8 +138,8 @@ class Bucket(BotoBucket):
             keys = super(Bucket, self)._get_all(*args, **kwargs)
 
             for key in keys:
-                mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
-                mimicdb.redis.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+                mimicdb.backend.sadd(tpl.bucket % self.name, key.name)
+                mimicdb.backend.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
 
                 key.name = key.name
 
@@ -152,12 +152,12 @@ class Bucket(BotoBucket):
     def sync(self):
         """Sync the bucket set with S3.
         """
-        for key in mimicdb.redis.smembers(tpl.bucket % self.name):
-            mimicdb.redis.delete(tpl.key % (self.name, key))
+        for key in mimicdb.backend.smembers(tpl.bucket % self.name):
+            mimicdb.backend.delete(tpl.key % (self.name, key))
 
-        mimicdb.redis.delete(tpl.bucket % self.name)
-        mimicdb.redis.sadd(tpl.connection, self.name)
+        mimicdb.backend.delete(tpl.bucket % self.name)
+        mimicdb.backend.sadd(tpl.connection, self.name)
 
         for key in self.list(force=True):
-            mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
-            mimicdb.redis.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+            mimicdb.backend.sadd(tpl.bucket % self.name, key.name)
+            mimicdb.backend.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))

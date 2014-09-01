@@ -4,7 +4,8 @@
 from boto.s3.key import Key as BotoKey
 
 import mimicdb
-from . import tpl
+
+from ..backends import tpl
 
 
 class Key(BotoKey):
@@ -18,10 +19,10 @@ class Key(BotoKey):
         self._name = name
 
         if name and bucket:
-            meta = mimicdb.redis.hgetall(tpl.key % (bucket.name, name))
+            meta = mimicdb.backend.hgetall(tpl.key % (bucket.name, name))
 
             if meta:
-                mimicdb.redis.sadd(tpl.bucket % bucket.name, name)
+                mimicdb.backend.sadd(tpl.bucket % bucket.name, name)
                 self._load_meta(meta['size'], meta['md5'])
 
         super(Key, self).__init__(*args, **kwargs)
@@ -52,10 +53,10 @@ class Key(BotoKey):
         self._name = value
 
         if value:
-            meta = mimicdb.redis.hgetall(tpl.key % (self.bucket.name, value))
+            meta = mimicdb.backend.hgetall(tpl.key % (self.bucket.name, value))
 
             if meta:
-                mimicdb.redis.sadd(tpl.bucket % self.bucket.name, value)
+                mimicdb.backend.sadd(tpl.bucket % self.bucket.name, value)
                 self._load_meta(meta['size'], meta['md5'])
 
     def _send_file_internal(self, *args, **kwargs):
@@ -64,8 +65,8 @@ class Key(BotoKey):
         """
         super(Key, self)._send_file_internal(*args, **kwargs)
 
-        mimicdb.redis.sadd(tpl.bucket % self.bucket.name, self.name)
-        mimicdb.redis.hmset(tpl.key % (self.bucket.name, self.name),
+        mimicdb.backend.sadd(tpl.bucket % self.bucket.name, self.name)
+        mimicdb.backend.hmset(tpl.key % (self.bucket.name, self.name),
                             dict(size=self.size, md5=self.md5))
 
     def _get_file_internal(self, *args, **kwargs):
@@ -74,6 +75,6 @@ class Key(BotoKey):
         """
         super(Key, self)._get_file_internal(*args, **kwargs)
 
-        mimicdb.redis.sadd(tpl.bucket % self.bucket.name, self.name)
-        mimicdb.redis.hmset(tpl.key % (self.bucket.name, self.name),
+        mimicdb.backend.sadd(tpl.bucket % self.bucket.name, self.name)
+        mimicdb.backend.hmset(tpl.key % (self.bucket.name, self.name),
                             dict(size=self.size, md5=self.md5))        

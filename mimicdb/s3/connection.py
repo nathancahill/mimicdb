@@ -6,7 +6,7 @@ from boto.exception import S3ResponseError
 
 import mimicdb
 from .bucket import Bucket
-from . import tpl
+from ..backends import tpl
 
 
 class S3Connection(BotoS3Connection):
@@ -25,11 +25,11 @@ class S3Connection(BotoS3Connection):
             buckets = super(S3Connection, self).get_all_buckets(*args, **kwargs)
 
             for bucket in buckets:
-                mimicdb.redis.sadd(tpl.connection, bucket.name)
+                mimicdb.backend.sadd(tpl.connection, bucket.name)
 
             return buckets
 
-        return [Bucket(self, bucket) for bucket in mimicdb.redis.smembers(tpl.connection)]
+        return [Bucket(self, bucket) for bucket in mimicdb.backend.smembers(tpl.connection)]
 
     def get_bucket(self, bucket_name, validate=True, headers=None, force=None):
         """Return a bucket from the MimicDB set if it exists. Simulates an
@@ -37,10 +37,10 @@ class S3Connection(BotoS3Connection):
         """
         if force:
             bucket = super(S3Connection, self).get_bucket(bucket_name, validate, headers)
-            mimicdb.redis.sadd(tpl.connection, bucket.name)
+            mimicdb.backend.sadd(tpl.connection, bucket.name)
             return bucket
 
-        if mimicdb.redis.sismember(tpl.connection, bucket_name):
+        if mimicdb.backend.sismember(tpl.connection, bucket_name):
             return Bucket(self, bucket_name)
         else:
             if validate:
@@ -54,7 +54,7 @@ class S3Connection(BotoS3Connection):
         bucket = super(S3Connection, self).create_bucket(*args, **kwargs)
 
         if bucket:
-            mimicdb.redis.sadd(tpl.connection, bucket.name)
+            mimicdb.backend.sadd(tpl.connection, bucket.name)
 
         return bucket
 
@@ -68,9 +68,9 @@ class S3Connection(BotoS3Connection):
         bucket = kwargs.get('bucket_name', args[0] if args else None)
 
         if bucket:
-            mimicdb.redis.srem(tpl.connection, bucket)
+            mimicdb.backend.srem(tpl.connection, bucket)
 
-    def sync(self, buckets=[]):
+    def sync(self, *buckets):
         """Sync either a list of buckets or the entire connection.
 
         Force all API calls to S3 and populate the database with the current
@@ -78,24 +78,24 @@ class S3Connection(BotoS3Connection):
         """
         if buckets:
             for _bucket in buckets:
-                for key in mimicdb.redis.smembers(tpl.bucket % _bucket):
-                    mimicdb.redis.delete(tpl.key % (_bucket, key))
+                for key in mimicdb.backend.smembers(tpl.bucket % _bucket):
+                    mimicdb.backend.delete(tpl.key % (_bucket, key))
 
-                mimicdb.redis.delete(tpl.bucket % _bucket)
+                mimicdb.backend.delete(tpl.bucket % _bucket)
 
                 bucket = self.get_bucket(_bucket, force=True)
 
                 for key in bucket.list(force=True):
-                    mimicdb.redis.sadd(tpl.bucket % bucket, key.name)
-                    mimicdb.redis.hmset(tpl.key % (bucket, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+                    mimicdb.backend.sadd(tpl.bucket % bucket, key.name)
+                    mimicdb.backend.hmset(tpl.key % (bucket, key.name), dict(size=key.size, md5=key.etag.strip('"')))
         else:
-            for bucket in mimicdb.redis.smembers(tpl.connection):
-                for key in mimicdb.redis.smembers(tpl.bucket % bucket):
-                    mimicdb.redis.delete(tpl.key % (bucket, key))
+            for bucket in mimicdb.backend.smembers(tpl.connection):
+                for key in mimicdb.backend.smembers(tpl.bucket % bucket):
+                    mimicdb.backend.delete(tpl.key % (bucket, key))
 
-                mimicdb.redis.delete(tpl.bucket % bucket)
+                mimicdb.backend.delete(tpl.bucket % bucket)
 
             for bucket in self.get_all_buckets(force=True):
                 for key in bucket.list(force=True):
-                    mimicdb.redis.sadd(tpl.bucket % bucket.name, key.name)
-                    mimicdb.redis.hmset(tpl.key % (bucket.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+                    mimicdb.backend.sadd(tpl.bucket % bucket.name, key.name)
+                    mimicdb.backend.hmset(tpl.key % (bucket.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
