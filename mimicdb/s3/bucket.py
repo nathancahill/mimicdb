@@ -32,7 +32,7 @@ class Bucket(BotoBucket):
             headers['force'] = True
             kwargs['headers'] = headers
 
-        super(Bucket, self).get_key(*args, **kwargs)
+        return super(Bucket, self).get_key(*args, **kwargs)
 
     def _get_key_internal(self, *args, **kwargs):
         """Return None if key is not in the bucket set.
@@ -54,7 +54,7 @@ class Bucket(BotoBucket):
 
         if mimicdb.redis.sismember(tpl.bucket % self.name, args[0]):
             key = Key(self)
-            key.key = args[0]
+            key.name = args[0]
 
         return key, None
 
@@ -135,15 +135,22 @@ class Bucket(BotoBucket):
                 args = list(args)
                 args[2] = headers
 
-            return super(Bucket, self)._get_all(*args, **kwargs)
+            keys = super(Bucket, self)._get_all(*args, **kwargs)
+
+            for key in keys:
+                mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
+                mimicdb.redis.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+
+                key.name = key.name
+
+            return keys
 
         prefix = kwargs.get('prefix', '')
 
         return list(self.list(prefix=prefix))
 
-    def sync(self, metadata=False):
-        """Sync the bucket set with S3. If metadata=True, a HEAD request is
-        performed for each key to download the size and md5 hash of the key.
+    def sync(self):
+        """Sync the bucket set with S3.
         """
         for key in mimicdb.redis.smembers(tpl.bucket % self.name):
             mimicdb.redis.delete(tpl.key % (self.name, key))
@@ -152,7 +159,5 @@ class Bucket(BotoBucket):
         mimicdb.redis.sadd(tpl.connection, self.name)
 
         for key in self.list(force=True):
-            if metadata:
-                self.get_key(key.name, force=True)
-            else:
-                mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
+            mimicdb.redis.sadd(tpl.bucket % self.name, key.name)
+            mimicdb.redis.hmset(tpl.key % (self.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))

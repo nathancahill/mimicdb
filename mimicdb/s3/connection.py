@@ -70,10 +70,8 @@ class S3Connection(BotoS3Connection):
         if bucket:
             mimicdb.redis.srem(tpl.connection, bucket)
 
-    def sync(self, metadata=False, buckets=[]):
+    def sync(self, buckets=[]):
         """Sync either a list of buckets or the entire connection.
-        If metadata=True, a HEAD request is performed for each key to download
-        the size and md5 hash of the key.
 
         Force all API calls to S3 and populate the database with the current
         state of S3.
@@ -88,10 +86,8 @@ class S3Connection(BotoS3Connection):
                 bucket = self.get_bucket(_bucket, force=True)
 
                 for key in bucket.list(force=True):
-                    if metadata:
-                        bucket.get_key(key.name, force=True)
-                    else:
-                        mimicdb.redis.sadd(tpl.bucket % bucket, key.name)
+                    mimicdb.redis.sadd(tpl.bucket % bucket, key.name)
+                    mimicdb.redis.hmset(tpl.key % (bucket, key.name), dict(size=key.size, md5=key.etag.strip('"')))
         else:
             for bucket in mimicdb.redis.smembers(tpl.connection):
                 for key in mimicdb.redis.smembers(tpl.bucket % bucket):
@@ -101,7 +97,5 @@ class S3Connection(BotoS3Connection):
 
             for bucket in self.get_all_buckets(force=True):
                 for key in bucket.list(force=True):
-                    if metadata:
-                        bucket.get_key(key.name, force=True)
-                    else:
-                        mimicdb.redis.sadd(tpl.bucket % bucket.name, key.name)
+                    mimicdb.redis.sadd(tpl.bucket % bucket.name, key.name)
+                    mimicdb.redis.hmset(tpl.key % (bucket.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))

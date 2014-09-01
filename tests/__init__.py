@@ -1,4 +1,6 @@
 import os
+import random
+import string
 import hashlib
 import logging
 import unittest
@@ -22,6 +24,10 @@ AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
+def random_string(size=6, chars=string.ascii_lowercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
+
+
 class MimicDBTestCase(unittest.TestCase):
     def setUp(self):
         MimicDB(namespace='tests')
@@ -30,7 +36,8 @@ class MimicDBTestCase(unittest.TestCase):
         self.boto_conn = BotoS3Connection(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 
         self.redis = redis.StrictRedis()
-        self.boto_bucket = self.boto_conn.create_bucket('mimicdb-tests')
+        self.name = 'mimicdb-tests-' + random_string()
+        self.boto_bucket = self.boto_conn.create_bucket(self.name)
 
         key = BotoKey(self.boto_bucket)
         key.key = 'upload'
@@ -38,7 +45,7 @@ class MimicDBTestCase(unittest.TestCase):
 
     def tearDown(self):
         for bucket in self.boto_conn.get_all_buckets():
-            if bucket.name.startswith('mimicdb-tests'):
+            if bucket.name.startswith(self.name):
                 for key in bucket.list():
                     key.delete()
 
@@ -58,98 +65,85 @@ class MimicDBTestCase(unittest.TestCase):
     def get_all_buckets_force_test(self):
         buckets = self.conn.get_all_buckets(force=True)
 
-        assert 'mimicdb-tests' in [bucket.name for bucket in buckets]
-        assert 'mimicdb-tests' in self.redis.smembers(tpl.connection)
+        assert self.name in [bucket.name for bucket in buckets]
 
     def get_bucket_test(self):
         with self.assertRaises(S3ResponseError):
-            self.conn.get_bucket('mimicdb-tests')
+            self.conn.get_bucket(self.name)
 
     def get_no_validate_bucket_test(self):
-        self.conn.get_bucket('mimicdb-tests', validate=False)
+        self.conn.get_bucket(self.name, validate=False)
 
     def get_bucket_force_test(self):
-        self.conn.get_bucket('mimicdb-tests', force=True)
+        self.conn.get_bucket(self.name, force=True)
 
-        assert 'mimicdb-tests' in self.redis.smembers(tpl.connection)
+        assert self.name in self.redis.smembers(tpl.connection)
 
     def create_bucket_test(self):
-        bucket = self.conn.create_bucket('mimicdb-tests-create')
+        bucket = self.conn.create_bucket(self.name + '-create')
 
-        assert 'mimicdb-tests-create' in self.redis.smembers(tpl.connection)
+        assert self.name + '-create' in self.redis.smembers(tpl.connection)
+
+    def sync_test(self):
+        self.conn.sync()
+
+        assert self.name in self.redis.smembers(tpl.connection)
+        assert 'upload' in self.redis.smembers(tpl.bucket % self.name)
+
+        meta = self.redis.hgetall(tpl.key % (self.name, 'upload'))
+
+        assert int(meta['size']) == len('upload')
+        assert meta['md5'] == hashlib.md5('upload').hexdigest()
 
     def delete_bucket_not_empty_test(self):
         self.conn.sync()
 
-        try:
-            self.conn.delete_bucket('mimicdb-tests')
-        except S3ResponseError:
-            pass
+        with self.assertRaises(S3ResponseError):
+            self.conn.delete_bucket(self.name)
 
-        assert 'mimicdb-tests' in self.redis.smembers(tpl.connection)
+        assert self.name in self.redis.smembers(tpl.connection)
 
     def delete_bucket_empty_test(self):
         for key in self.boto_bucket.list():
             key.delete()
 
         self.conn.sync()
-        self.conn.delete_bucket('mimicdb-tests')
+        self.conn.delete_bucket(self.name)
 
-        assert 'mimicdb-tests' not in self.redis.smembers(tpl.connection)
-
-    def sync_test(self):
-        self.conn.sync()
-
-        assert 'mimicdb-tests' in self.redis.smembers(tpl.connection)
-        assert 'upload' in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert self.name not in self.redis.smembers(tpl.connection)
 
     def sync_bucket_test(self):
-        self.boto_conn.create_bucket('mimicdb-tests-sync')
+        self.boto_conn.create_bucket(self.name + '-sync')
 
-        self.conn.sync(buckets=['mimicdb-tests'])
+        self.conn.sync(buckets=[self.name])
 
-        assert 'mimicdb-tests' in self.redis.smembers(tpl.connection)
-        assert 'mimicdb-tests-sync' not in self.redis.smembers(tpl.connection)
-
-    def sync_no_meta_test(self):
-        self.conn.sync(metadata=False)
-
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'upload'))
-
-        assert meta == dict()
-
-    def sync_meta_test(self):
-        self.conn.sync(metadata=True)
-
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'upload'))
-
-        assert int(meta['size']) == len('upload')
-        assert meta['md5'] == hashlib.md5('upload').hexdigest()
+        assert self.name in self.redis.smembers(tpl.connection)
+        assert self.name + '-sync' not in self.redis.smembers(tpl.connection)
 
     def sync_clear_test(self):
-        self.conn.sync(metadata=True)
+        self.conn.sync()
 
         key = BotoKey(self.boto_bucket)
         key.key = 'upload'
         key.set_contents_from_string('sync_clear')
 
-        self.conn.sync(metadata=True)
+        self.conn.sync()
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'upload'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'upload'))
 
         assert int(meta['size']) == len('sync_clear')
         assert meta['md5'] == hashlib.md5('sync_clear').hexdigest()  
 
     def sync_bucket_clear_test(self):
-        self.conn.sync(metadata=True)
+        self.conn.sync()
 
         key = BotoKey(self.boto_bucket)
         key.key = 'upload'
         key.set_contents_from_string('sync_clear')
 
-        self.conn.sync(metadata=True, buckets=['mimicdb-tests'])
+        self.conn.sync(buckets=[self.name])
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'upload'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'upload'))
 
         assert int(meta['size']) == len('sync_clear')
         assert meta['md5'] == hashlib.md5('sync_clear').hexdigest() 
@@ -161,7 +155,7 @@ class MimicDBTestCase(unittest.TestCase):
         boto_key.name = 'get_key'
         boto_key.set_contents_from_string('get_key')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = bucket.get_key('get_key')
 
         assert key is None
@@ -173,7 +167,7 @@ class MimicDBTestCase(unittest.TestCase):
         boto_key.name = 'get_key'
         boto_key.set_contents_from_string('get_key')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = bucket.get_key('get_key', force=True)
 
         assert key is not None
@@ -181,38 +175,38 @@ class MimicDBTestCase(unittest.TestCase):
     def delete_keys_string_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         bucket.delete_keys(['upload'])
 
-        boto_bucket = self.boto_conn.get_bucket('mimicdb-tests')
+        boto_bucket = self.boto_conn.get_bucket(self.name)
         key = boto_bucket.get_key('upload')
 
         assert key is None
-        assert 'upload' not in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert 'upload' not in self.redis.smembers(tpl.bucket % self.name)
 
     def delete_keys_key_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = bucket.get_key('upload')
         bucket.delete_keys([key])
 
-        boto_bucket = self.boto_conn.get_bucket('mimicdb-tests')
+        boto_bucket = self.boto_conn.get_bucket(self.name)
         key = boto_bucket.get_key('upload')
 
         assert key is None
-        assert 'upload' not in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert 'upload' not in self.redis.smembers(tpl.bucket % self.name)
 
     def delete_key_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         bucket.delete_key('upload')
 
         key = self.boto_bucket.get_key('upload')
 
         assert key is None
-        assert 'upload' not in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert 'upload' not in self.redis.smembers(tpl.bucket % self.name)
 
     def iter_test(self):
         self.conn.sync()
@@ -221,7 +215,7 @@ class MimicDBTestCase(unittest.TestCase):
         key.key = 'list'
         key.set_contents_from_string('list')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         assert 'list' not in [key.name for key in bucket]
 
@@ -232,34 +226,27 @@ class MimicDBTestCase(unittest.TestCase):
         key.key = 'list'
         key.set_contents_from_string('list')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         keys = bucket.list()
 
         assert 'list' not in [key.name for key in keys]
 
-    def list_force_no_meta_test(self):
+    def list_force_test(self):
         self.conn.sync()
 
         key = BotoKey(self.boto_bucket)
         key.key = 'list'
         key.set_contents_from_string('list')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
-        keys = bucket.list(force=True)
+        bucket = self.conn.get_bucket(self.name)
+        keys = list(bucket.list(force=True))
 
         assert 'list' in [key.name for key in keys]
-
-    def list_force_meta_test(self):
-        self.conn.sync(metadata=True)
-
-        bucket = self.conn.get_bucket('mimicdb-tests')
-        keys = bucket.list()
-
-        assert hashlib.md5('upload').hexdigest() in [key.md5 for key in keys]
+        assert hashlib.md5('list').hexdigest() in [key.md5 for key in keys]
 
     def get_all_test(self):
         self.conn.sync()
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         assert 'upload' in [key.name for key in bucket.get_all_keys()]
 
@@ -270,7 +257,7 @@ class MimicDBTestCase(unittest.TestCase):
         boto_key.name = 'get_all'
         boto_key.set_contents_from_string('get_all')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         assert 'get_all' in [key.name for key in bucket.get_all_keys(force=True)]
 
@@ -281,46 +268,18 @@ class MimicDBTestCase(unittest.TestCase):
         boto_key.name = 'sync'
         boto_key.set_contents_from_string('sync')
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         bucket.sync()
 
         key = bucket.get_key('sync')
 
-        assert key is not None
-
-    def bucket_sync_no_meta_test(self):
-        self.conn.sync()
-
-        boto_key = BotoKey(self.boto_bucket)
-        boto_key.name = 'sync'
-        boto_key.set_contents_from_string('sync')
-
-        bucket = self.conn.get_bucket('mimicdb-tests')
-        bucket.sync(metadata=True)
-
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'sync'))
-
-        assert int(meta['size']) == len('sync')
-        assert meta['md5'] == hashlib.md5('sync').hexdigest()  
-
-    def bucket_sync_meta_test(self):
-        self.conn.sync()
-
-        boto_key = BotoKey(self.boto_bucket)
-        boto_key.name = 'sync'
-        boto_key.set_contents_from_string('sync')
-
-        bucket = self.conn.get_bucket('mimicdb-tests')
-        bucket.sync(metadata=False)
-
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'sync'))
-
-        assert meta == dict()
+        assert key.size == len('sync')
+        assert key.md5 == hashlib.md5('sync').hexdigest()
 
     def get_key_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = Key(bucket)
         key.key = 'upload'
 
@@ -329,15 +288,15 @@ class MimicDBTestCase(unittest.TestCase):
     def get_unassigned_key_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = Key(bucket)
 
         assert key.key == None
 
     def set_key_test(self):
-        self.conn.sync(metadata=True)
+        self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
         key = Key(bucket)
         key.key = 'upload'
 
@@ -347,34 +306,34 @@ class MimicDBTestCase(unittest.TestCase):
     def track_upload_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = Key(bucket)
         key.key = 'track'
         key.set_contents_from_string('track')
 
-        assert 'track' in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert 'track' in self.redis.smembers(tpl.bucket % self.name)
 
     def track_upload_init_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = Key(bucket, 'track')
         key.set_contents_from_string('track')
 
-        assert 'track' in self.redis.smembers(tpl.bucket % 'mimicdb-tests')
+        assert 'track' in self.redis.smembers(tpl.bucket % self.name)
 
     def track_upload_meta_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = Key(bucket)
         key.key = 'track'
         key.set_contents_from_string('track')
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'track'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'track'))
 
         assert int(meta['size']) == len('track')
         assert meta['md5'] == hashlib.md5('track').hexdigest()
@@ -382,12 +341,12 @@ class MimicDBTestCase(unittest.TestCase):
     def track_upload_meta_init_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = Key(bucket, 'track')
         key.set_contents_from_string('track')
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'track'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'track'))
 
         assert int(meta['size']) == len('track')
         assert meta['md5'] == hashlib.md5('track').hexdigest()
@@ -395,7 +354,7 @@ class MimicDBTestCase(unittest.TestCase):
     def track_download_meta_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = BotoKey(self.boto_bucket)
         key.key = 'download'
@@ -405,7 +364,7 @@ class MimicDBTestCase(unittest.TestCase):
         key.key = 'download'
         key.get_contents_as_string()
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'download'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'download'))
 
         assert int(meta['size']) == len('download')
         assert meta['md5'] == hashlib.md5('download').hexdigest()
@@ -413,7 +372,7 @@ class MimicDBTestCase(unittest.TestCase):
     def track_download_meta_init_test(self):
         self.conn.sync()
 
-        bucket = self.conn.get_bucket('mimicdb-tests')
+        bucket = self.conn.get_bucket(self.name)
 
         key = BotoKey(self.boto_bucket)
         key.key = 'download'
@@ -422,7 +381,7 @@ class MimicDBTestCase(unittest.TestCase):
         key = Key(bucket, 'download')
         key.get_contents_as_string()
 
-        meta = self.redis.hgetall(tpl.key % ('mimicdb-tests', 'download'))
+        meta = self.redis.hgetall(tpl.key % (self.name, 'download'))
 
         assert int(meta['size']) == len('download')
         assert meta['md5'] == hashlib.md5('download').hexdigest()
