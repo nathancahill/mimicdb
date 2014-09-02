@@ -7,13 +7,14 @@
 
 #### Python Implementation of MimicDB
 
-Python works with the Boto library.
+The Python implementation of MimicDB works with the Boto library and several different backends including Redis.
 
 #### Installation
 
 By default, MimicDB requires Redis (although other backends can be used instead).
 
 ```
+$ pip install boto
 $ pip install redis
 $ pip install mimicdb
 ```
