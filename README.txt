@@ -88,7 +88,7 @@ backends available.
 Documentation
 ^^^^^^^^^^^^^
 
-`mimicdb.readthedocs.org <http://mimicdb.readthedocs.org>`__
+`mimicdb.readthedocs.org <http://mimicdb.readthedocs.org>`_
 
 Contributing
 ^^^^^^^^^^^^
@@ -111,10 +111,10 @@ Run tests after installing nose and coverage.
     $ nosetests --with-coverage --cover-package=mimicdb
 
 Integration testing is provided by Travis-CI at
-`travis-ci.org/nathancahill/mimicdb <https://travis-ci.org/nathancahill/mimicdb>`__
+`travis-ci.org/nathancahill/mimicdb <https://travis-ci.org/nathancahill/mimicdb>`_
 
 Test coverage reporting is provided by Coveralls at
-`coveralls.io/r/nathancahill/mimicdb <coveralls.io/r/nathancahill/mimicdb>`__
+`coveralls.io/r/nathancahill/mimicdb <https://coveralls.io/r/nathancahill/mimicdb>`_
 
 Benchmarks
 ^^^^^^^^^^
@@ -127,6 +127,11 @@ Run ``benchmarks.py`` in the root of the repo:
     Boto Time: 0.338411092758
     MimicDB Time: 0.00015789039612
     Factor: 2143x faster
+
+License
+^^^^^^^
+
+MimicDB is BSD licensed.
 
 .. |PyPI| image:: http://img.shields.io/pypi/v/mimicdb.svg?style=flat
    :target: https://pypi.python.org/pypi/mimicdb/

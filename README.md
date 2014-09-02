@@ -91,7 +91,7 @@ $ nosetests --with-coverage --cover-package=mimicdb
 
 Integration testing is provided by Travis-CI at [travis-ci.org/nathancahill/mimicdb](https://travis-ci.org/nathancahill/mimicdb)
 
-Test coverage reporting is provided by Coveralls at [coveralls.io/r/nathancahill/mimicdb](coveralls.io/r/nathancahill/mimicdb)
+Test coverage reporting is provided by Coveralls at [coveralls.io/r/nathancahill/mimicdb](https://coveralls.io/r/nathancahill/mimicdb)
 
 #### Benchmarks
 
@@ -103,3 +103,7 @@ Boto Time: 0.338411092758
 MimicDB Time: 0.00015789039612
 Factor: 2143x faster
 ```
+
+#### License
+
+MimicDB is BSD licensed.
