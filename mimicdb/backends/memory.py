@@ -1,9 +1,15 @@
-
-
 from . import Backend
 
 
 class Memory(Backend):
+    """In-Memory backend. A good example for building a custom backend.
+
+    .. code-block:: python
+
+        from mimicdb.backends.memory import Memory
+
+        memory = Memory()
+    """
     def __init__(self):
         self._data = dict()
 

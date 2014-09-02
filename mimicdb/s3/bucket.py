@@ -24,8 +24,9 @@ class Bucket(BotoBucket):
         return self.list()
 
     def get_key(self, *args, **kwargs):
-        """Pass 'force' to _get_key_internal() in the headers since the call
-        signature of _get_key_internal can not be changed.
+        """Return the key from MimicDB.
+
+        :param boolean force: If true, API call is forced to S3
         """
         if kwargs.pop('force', None):
             headers = kwargs.get('headers', {})
@@ -59,7 +60,9 @@ class Bucket(BotoBucket):
         return key, None
 
     def get_all_keys(self, *args, **kwargs):
-        """Pass 'force' in headers to _get_all()
+        """Return a list of keys from MimicDB.
+
+        :param boolean force: If true, API call is forced to S3
         """
         if kwargs.pop('force', None):
             headers = kwargs.get('headers', args[0] if len(args) else None) or dict()
@@ -97,8 +100,9 @@ class Bucket(BotoBucket):
         return super(Bucket, self)._delete_key_internal(*args, **kwargs)
 
     def list(self, *args, **kwargs):
-        """Return an iterable of keys from the bucket set. Pass 'force' to
-        pull the keys from S3. Force is passed via the headers to _get_all().
+        """Return an iterable of keys from MimicDB.
+
+        :param boolean force: If true, API call is forced to S3
         """
         if kwargs.pop('force', None):
             headers = kwargs.get('headers', args[4] if len(args) > 4 else None) or dict()
@@ -150,7 +154,9 @@ class Bucket(BotoBucket):
         return list(self.list(prefix=prefix))
 
     def sync(self):
-        """Sync the bucket set with S3.
+        """Sync a bucket.
+
+        Force all API calls to S3 and populate the database with the current state of S3.
         """
         for key in mimicdb.backend.smembers(tpl.bucket % self.name):
             mimicdb.backend.delete(tpl.key % (self.name, key))

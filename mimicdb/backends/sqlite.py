@@ -5,6 +5,18 @@ from . import Backend
 
 
 class SQLite(Backend):
+    """SQLite backend. Pass ``sqlite3.connect()`` parameters to ``__init__``.
+    If no parameters are passed, ``:memory:`` is chossen as the default
+    database.
+
+    :param args \*args, \**kwargs: sqlite3.connect() parameters
+
+    .. code-block:: python
+
+        from mimicdb.backends.sqlite import SQLite
+
+        sqlite = SQLite('mimicdb.db')
+    """
     def __init__(self, *args, **kwargs):
         if not args and not kwargs:
             args = [':memory:']

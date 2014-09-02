@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Syncing S3 State &mdash; MimicDB 1.0.1 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="MimicDB 1.0.1 documentation" href="index.html"/>
+        <link rel="next" title="Forcing S3 API Calls" href="forcing.html"/>
+        <link rel="prev" title="Backends" href="backends.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="fa fa-home"> MimicDB</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backends</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Syncing S3 State</a></li>
+<li class="toctree-l1"><a class="reference internal" href="forcing.html">Forcing S3 API Calls</a></li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">MimicDB</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Syncing S3 State</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          <a href="_sources/syncing.txt" rel="nofollow"> View page source</a>
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <div class="section" id="syncing-s3-state">
+<span id="syncing"></span><h1>Syncing S3 State<a class="headerlink" href="#syncing-s3-state" title="Permalink to this headline">¶</a></h1>
+<p>If there are buckets or keys on S3 before starting to use MimicDB, it&#8217;s
+important to sync the connection to ensure consistency with the S3 API in
+future calls.</p>
+<p>Syncing only has to be run once. Be aware that buckets with large numbers of
+keys can take a long time to sync. It&#8217;s best to not use S3Connection.sync()
+in frequently used code paths.</p>
+<p>All MimicDB data in the synced buckets is cleared before syncing to ensure a
+clean slate.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb.s3.connection</span> <span class="kn">import</span> <span class="n">S3Connection</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">S3Connection</span><span class="p">(</span><span class="n">KEY</span><span class="p">,</span> <span class="n">SECRET</span><span class="p">)</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="mimicdb.s3.connection.S3Connection.sync">
+<tt class="descclassname">S3Connection.</tt><tt class="descname">sync</tt><big>(</big><em>*buckets</em><big>)</big><a class="headerlink" href="#mimicdb.s3.connection.S3Connection.sync" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sync either a list of buckets or the entire connection.</p>
+<p>Force all API calls to S3 and populate the database with the current
+state of S3.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>*buckets</strong> (<em>*string</em>) &#8211; Buckets to sync</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="mimicdb.s3.bucket.Bucket.sync">
+<tt class="descclassname">Bucket.</tt><tt class="descname">sync</tt><big>(</big><big>)</big><a class="headerlink" href="#mimicdb.s3.bucket.Bucket.sync" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sync a bucket.</p>
+<p>Force all API calls to S3 and populate the database with the current state of S3.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="forcing.html" class="btn btn-neutral float-right" title="Forcing S3 API Calls"/>Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="backends.html" class="btn btn-neutral" title="Backends"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Nathan Cahill.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'1.0.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

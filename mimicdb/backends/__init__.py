@@ -1,8 +1,18 @@
-"""Base class for MimicDB backends
-"""
-
 class Backend(object):
-    def __init__(self, *args, **kwargs):
+    """Base class for MimicDB backends. Extendable to support custom backends.
+    A custom backend **must** implement each of the functions of the
+    base class.
+
+    .. code-block:: python
+
+        from mimicdb.backends import Backend
+
+        class MyAwesomeBackend(Backend):
+            def __init__(self):
+
+            etc.
+    """
+    def __init__(self):
         pass
 
     def delete(self, *names):

@@ -1,0 +1,249 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Backends &mdash; MimicDB 1.0.1 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="MimicDB 1.0.1 documentation" href="index.html"/>
+        <link rel="next" title="Syncing S3 State" href="syncing.html"/>
+        <link rel="prev" title="Quickstart" href="quickstart.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="fa fa-home"> MimicDB</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Backends</a></li>
+<li class="toctree-l1"><a class="reference internal" href="syncing.html">Syncing S3 State</a></li>
+<li class="toctree-l1"><a class="reference internal" href="forcing.html">Forcing S3 API Calls</a></li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">MimicDB</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Backends</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          <a href="_sources/backends.txt" rel="nofollow"> View page source</a>
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <div class="section" id="backends">
+<span id="id1"></span><h1>Backends<a class="headerlink" href="#backends" title="Permalink to this headline">¶</a></h1>
+<p>Besides the default Redis backend, MimicDB has SQLite and in-memory
+backends available. To use a different backend, pass an instance of it to the
+MimicDB <tt class="docutils literal"><span class="pre">__init__</span></tt> function:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb</span> <span class="kn">import</span> <span class="n">MimicDB</span>
+<span class="kn">from</span> <span class="nn">mimicdb.backends.sqlite</span> <span class="kn">import</span> <span class="n">SQLite</span>
+
+<span class="n">MimicDB</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">SQLite</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Keep in mind that the default database for the SQLite backend is an in-memory
+database. It, along with the in-memory backend, will be destroyed when the
+process finishes running. For persistent data, use Redis or a custom backend.</p>
+<span class="target" id="module-mimicdb.backends"></span><dl class="class">
+<dt id="mimicdb.backends.Backend">
+<em class="property">class </em><tt class="descclassname">mimicdb.backends.</tt><tt class="descname">Backend</tt><a class="headerlink" href="#mimicdb.backends.Backend" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for MimicDB backends. Extendable to support custom backends.
+A custom backend <strong>must</strong> implement each of the functions of the
+base class.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb.backends</span> <span class="kn">import</span> <span class="n">Backend</span>
+
+<span class="k">class</span> <span class="nc">MyAwesomeBackend</span><span class="p">(</span><span class="n">Backend</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="n">etc</span><span class="o">.</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<span class="target" id="module-mimicdb.backends.default"></span><dl class="class">
+<dt id="mimicdb.backends.default.Redis">
+<em class="property">class </em><tt class="descclassname">mimicdb.backends.default.</tt><tt class="descname">Redis</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.backends.default.Redis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default backend for MimicDB. Initiated with identical parameters
+as <tt class="docutils literal"><span class="pre">redis.StrictRedis</span></tt>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>*args, **kwargs</strong> (<em>args</em>) &#8211; StrictRedis.__init__() parameters</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb.backends.default</span> <span class="kn">import</span> <span class="n">Redis</span>
+
+<span class="n">redis</span> <span class="o">=</span> <span class="n">Redis</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">6379</span><span class="p">,</span> <span class="n">db</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<span class="target" id="module-mimicdb.backends.sqlite"></span><dl class="class">
+<dt id="mimicdb.backends.sqlite.SQLite">
+<em class="property">class </em><tt class="descclassname">mimicdb.backends.sqlite.</tt><tt class="descname">SQLite</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.backends.sqlite.SQLite" title="Permalink to this definition">¶</a></dt>
+<dd><p>SQLite backend. Pass <tt class="docutils literal"><span class="pre">sqlite3.connect()</span></tt> parameters to <tt class="docutils literal"><span class="pre">__init__</span></tt>.
+If no parameters are passed, <tt class="docutils literal"><span class="pre">:memory:</span></tt> is chossen as the default
+database.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>*args, **kwargs</strong> (<em>args</em>) &#8211; sqlite3.connect() parameters</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb.backends.sqlite</span> <span class="kn">import</span> <span class="n">SQLite</span>
+
+<span class="n">sqlite</span> <span class="o">=</span> <span class="n">SQLite</span><span class="p">(</span><span class="s">&#39;mimicdb.db&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<span class="target" id="module-mimicdb.backends.memory"></span><dl class="class">
+<dt id="mimicdb.backends.memory.Memory">
+<em class="property">class </em><tt class="descclassname">mimicdb.backends.memory.</tt><tt class="descname">Memory</tt><a class="headerlink" href="#mimicdb.backends.memory.Memory" title="Permalink to this definition">¶</a></dt>
+<dd><p>In-Memory backend. A good example for building a custom backend.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">mimicdb.backends.memory</span> <span class="kn">import</span> <span class="n">Memory</span>
+
+<span class="n">memory</span> <span class="o">=</span> <span class="n">Memory</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="syncing.html" class="btn btn-neutral float-right" title="Syncing S3 State"/>Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="quickstart.html" class="btn btn-neutral" title="Quickstart"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Nathan Cahill.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'1.0.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

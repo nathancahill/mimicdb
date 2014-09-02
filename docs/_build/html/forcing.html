@@ -1,0 +1,251 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Forcing S3 API Calls &mdash; MimicDB 1.0.1 documentation</title>
+  
+
+  
+  
+
+  
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="MimicDB 1.0.1 documentation" href="index.html"/>
+        <link rel="prev" title="Syncing S3 State" href="syncing.html"/> 
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.6.2/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        <a href="index.html" class="fa fa-home"> MimicDB</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+        
+            <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backends</a></li>
+<li class="toctree-l1"><a class="reference internal" href="syncing.html">Syncing S3 State</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Forcing S3 API Calls</a></li>
+</ul>
+
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">MimicDB</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Forcing S3 API Calls</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          <a href="_sources/forcing.txt" rel="nofollow"> View page source</a>
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            
+  <div class="section" id="forcing-s3-api-calls">
+<span id="forcing"></span><h1>Forcing S3 API Calls<a class="headerlink" href="#forcing-s3-api-calls" title="Permalink to this headline">¶</a></h1>
+<p>All of Boto&#8217;s S3 classes and functions are wrapped in MimicDB functions to
+provide access to the local data instead of the S3 API. This means that
+changes to buckets and keys on S3 (outside of MimicDB), won&#8217;t be
+reflected in MimicDB unless the API call is forced.</p>
+<p>Forcing an S3 API call also stores the response in MimicDB, so the forced call
+only has to happen once to retrieve new changes.</p>
+<p>In most cases, passing <tt class="docutils literal"><span class="pre">force=True</span></tt> to the function will cause the S3 API call
+to be executed.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last"><tt class="docutils literal"><span class="pre">Bucket.__iter__</span></tt> can not have arguments passed to it, so it defaults to
+not calling the API.</p>
+</div>
+<p>The following functions can be forced:</p>
+<dl class="method">
+<dt id="mimicdb.s3.connection.S3Connection.get_bucket">
+<tt class="descclassname">S3Connection.</tt><tt class="descname">get_bucket</tt><big>(</big><em>bucket_name</em>, <em>validate=True</em>, <em>headers=None</em>, <em>force=None</em><big>)</big><a class="headerlink" href="#mimicdb.s3.connection.S3Connection.get_bucket" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a bucket from MimicDB if it exists. Return a
+S3ResponseError if the bucket does not exist and validate is passed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>boolean</em>) &#8211; If true, API call is forced to S3</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="mimicdb.s3.connection.S3Connection.get_all_buckets">
+<tt class="descclassname">S3Connection.</tt><tt class="descname">get_all_buckets</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.s3.connection.S3Connection.get_all_buckets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of buckets in MimicDB.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>boolean</em>) &#8211; If true, API call is forced to S3</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="mimicdb.s3.bucket.Bucket.get_key">
+<tt class="descclassname">Bucket.</tt><tt class="descname">get_key</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.s3.bucket.Bucket.get_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the key from MimicDB.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>boolean</em>) &#8211; If true, API call is forced to S3</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="mimicdb.s3.bucket.Bucket.get_all_keys">
+<tt class="descclassname">Bucket.</tt><tt class="descname">get_all_keys</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.s3.bucket.Bucket.get_all_keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of keys from MimicDB.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>boolean</em>) &#8211; If true, API call is forced to S3</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="mimicdb.s3.bucket.Bucket.list">
+<tt class="descclassname">Bucket.</tt><tt class="descname">list</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#mimicdb.s3.bucket.Bucket.list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return an iterable of keys from MimicDB.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>boolean</em>) &#8211; If true, API call is forced to S3</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="syncing.html" class="btn btn-neutral" title="Syncing S3 State"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2014, Nathan Cahill.
+    </p>
+  </div>
+
+  <a href="https://github.com/snide/sphinx_rtd_theme">Sphinx theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'1.0.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

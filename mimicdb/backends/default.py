@@ -5,6 +5,17 @@ from . import Backend
 
 
 class Redis(Backend):
+    """Default backend for MimicDB. Initiated with identical parameters
+    as ``redis.StrictRedis``.
+
+    :param args \*args, \**kwargs: StrictRedis.__init__() parameters
+
+    .. code-block:: python
+
+        from mimicdb.backends.default import Redis
+
+        redis = Redis(host='localhost', port=6379, db=0)
+    """
     def __init__(self, *args, **kwargs):
         self._redis = StrictRedis(*args, **kwargs)
 

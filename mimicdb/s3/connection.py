@@ -18,8 +18,9 @@ class S3Connection(BotoS3Connection):
         super(S3Connection, self).__init__(*args, **kwargs)
 
     def get_all_buckets(self, *args, **kwargs):
-        """Return a list of buckets in the MimicDB set. Pass 'force' to check
-        S3 for the list of buckets.
+        """Return a list of buckets in MimicDB.
+
+        :param boolean force: If true, API call is forced to S3
         """
         if kwargs.pop('force', None):
             buckets = super(S3Connection, self).get_all_buckets(*args, **kwargs)
@@ -32,8 +33,10 @@ class S3Connection(BotoS3Connection):
         return [Bucket(self, bucket) for bucket in mimicdb.backend.smembers(tpl.connection)]
 
     def get_bucket(self, bucket_name, validate=True, headers=None, force=None):
-        """Return a bucket from the MimicDB set if it exists. Simulates an
+        """Return a bucket from MimicDB if it exists. Return a
         S3ResponseError if the bucket does not exist and validate is passed.
+
+        :param boolean force: If true, API call is forced to S3
         """
         if force:
             bucket = super(S3Connection, self).get_bucket(bucket_name, validate, headers)
@@ -49,7 +52,7 @@ class S3Connection(BotoS3Connection):
                 return Bucket(self, bucket_name)
 
     def create_bucket(self, *args, **kwargs):
-        """Add the bucket to the MimicDB set if creation is successful.
+        """Add the bucket to MimicDB after successful creation.
         """
         bucket = super(S3Connection, self).create_bucket(*args, **kwargs)
 
@@ -59,7 +62,7 @@ class S3Connection(BotoS3Connection):
         return bucket
 
     def delete_bucket(self, *args, **kwargs):
-        """Delete the bucket on S3 before removing it from the MimicDB set.
+        """Delete the bucket on S3 before removing it from MimicDB.
         If the delete fails (usually because the bucket is not empty), do
         not remove the bucket from the set.
         """
@@ -75,6 +78,8 @@ class S3Connection(BotoS3Connection):
 
         Force all API calls to S3 and populate the database with the current
         state of S3.
+
+        :param \*string \*buckets: Buckets to sync
         """
         if buckets:
             for _bucket in buckets:
