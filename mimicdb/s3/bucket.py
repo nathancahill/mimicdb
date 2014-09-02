@@ -133,12 +133,6 @@ class Bucket(BotoBucket):
         headers = kwargs.get('headers', args[2] if len(args) > 2 else None) or dict()
 
         if 'force' in headers:
-            headers.pop('force')
-
-            if len(args) > 2:
-                args = list(args)
-                args[2] = headers
-
             keys = super(Bucket, self)._get_all(*args, **kwargs)
 
             for key in keys:
