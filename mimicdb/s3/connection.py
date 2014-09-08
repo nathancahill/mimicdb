@@ -91,8 +91,8 @@ class S3Connection(BotoS3Connection):
                 bucket = self.get_bucket(_bucket, force=True)
 
                 for key in bucket.list(force=True):
-                    mimicdb.backend.sadd(tpl.bucket % bucket, key.name)
-                    mimicdb.backend.hmset(tpl.key % (bucket, key.name), dict(size=key.size, md5=key.etag.strip('"')))
+                    mimicdb.backend.sadd(tpl.bucket % bucket.name, key.name)
+                    mimicdb.backend.hmset(tpl.key % (bucket.name, key.name), dict(size=key.size, md5=key.etag.strip('"')))
         else:
             for bucket in mimicdb.backend.smembers(tpl.connection):
                 for key in mimicdb.backend.smembers(tpl.bucket % bucket):
