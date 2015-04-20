@@ -38,7 +38,7 @@ class Key(BotoKey):
 
         self.size = int(size)
 
-        if (re.match('^"[a-fA-F0-9]{32}"$', md5)):
+        if (re.match('^[a-fA-F0-9]{32}$', md5)):
             self.md5 = md5
 
     @property
