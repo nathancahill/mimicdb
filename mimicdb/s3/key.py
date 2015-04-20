@@ -1,6 +1,8 @@
 """MimicDB Key subclass wrapper
 """
 
+import re
+
 from boto.s3.key import Key as BotoKey
 
 import mimicdb
@@ -35,7 +37,9 @@ class Key(BotoKey):
             self.local_hashes = {}
 
         self.size = int(size)
-        self.md5 = md5
+
+        if (re.match('^"[a-fA-F0-9]{32}"$', md5)):
+            self.md5 = md5
 
     @property
     def name(self):
